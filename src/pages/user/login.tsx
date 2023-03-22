@@ -3,26 +3,50 @@ import Head from "next/head";
 import Link from "next/link";
 import { useRouter } from "next/router";
 import { getProviders, getSession, signIn } from "next-auth/react";
+import { useQuery, gql } from "@apollo/client";
+import client from "../../../src/apollo-client";
 
 export default function LoginPage() {
+  const LOGIN_MUTATION = gql`
+    mutation Login($user: UserLoginInput!) {
+      login(user: $user) {
+        token
+        user {
+          _id
+          email
+          name
+          role
+        }
+      }
+    }
+  `;
+
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
 
-  const handleSubmit = async (event: any) => {
-    event.preventDefault();
-    const result: any = await signIn("credentials", {
-      redirect: false,
-      email,
-      password,
+  async function handleSubmit(email: any, password: any) {
+    console.log("handleSubmit", email, password);
+    const { data } = await client.mutate({
+      mutation: LOGIN_MUTATION,
+      variables: {
+        user: { email, password },
+      },
     });
+    return data.login;
+  }
 
-    if (result.error) {
-      console.log(result.error);
-    } else {
-      router.push("/");
-    }
-  };
+  // // Example usage
+  handleSubmit(email, password)
+    .then((result) => console.log(result))
+    .catch((error) => console.error(error));
+
+  function handleFormSubmit(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    handleSubmit(email, password)
+      .then((result) => console.log(result))
+      .catch((error) => console.error(error));
+  }
 
   return (
     <>
@@ -32,7 +56,7 @@ export default function LoginPage() {
       <div className="flex justify-center items-center h-screen bg-gray-100">
         <div className="bg-white p-8 rounded shadow-md w-96">
           <h1 className="text-2xl font-bold mb-4">Log In</h1>
-          <form onSubmit={handleSubmit}>
+          <form onSubmit={handleFormSubmit}>
             <div className="mb-4">
               <label
                 htmlFor="email"
@@ -84,18 +108,18 @@ export default function LoginPage() {
   );
 }
 
-export async function getServerSideProps(context: { req: any }) {
-  const { req } = context;
-  const session = await getSession({ req });
-  const providers = await getProviders();
-  if (session) {
-    return {
-      redirect: { destination: "/" },
-    };
-  }
-  return {
-    props: {
-      providers,
-    },
-  };
-}
+// export async function getServerSideProps(context: { req: any }) {
+//   const { req } = context;
+//   const session = await getSession({ req });
+//   const providers = await getProviders();
+//   if (session) {
+//     return {
+//       redirect: { destination: "/" },
+//     };
+//   }
+//   return {
+//     props: {
+//       providers,
+//     },
+//   };
+// }
